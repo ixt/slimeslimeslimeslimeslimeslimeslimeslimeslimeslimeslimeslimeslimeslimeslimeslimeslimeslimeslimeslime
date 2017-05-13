@@ -19,17 +19,20 @@ download_video_lists(){
 do_video(){
     local entry=$1
     mkdir ../cuts/$entry 2>/dev/null
-    youtube-dl --write-auto-sub  --id -f 18 $entry
-    grep "<c> slime" $entry.*.vtt | sed -r "s/.*(<[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9]><c> slime<\/c><[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]>).*/\1/g" | grep -v '[abdfghjknopqrtuvwxyz]' | sed -e "s/><c> slime<\/c></,/g" -e "s/[<>]//g" > $entry.times
-    cat $entry.times
-    local O=0
-    while read time; do 
-        (( O += 1 )) 
-        echo "CLIP!"
-        timestamp=$(echo $time | cut -d"," -f 2)  
-        end=$(echo $(echo "$timestamp" | cut -d: -f -2):$(echo "$timestamp-0.25" | cut -d: -f 3 | bc -l))
-        ffmpeg -ss $end -i $entry.mp4 -ss 00:00:00 -to 00:00:00.5 -async 1 ../cuts/$entry/$O.mp4
-    done < $entry.times
+    youtube-dl --id $entry --write-auto-sub --skip-download | grep "info|WARNING"
+    if grep "<c> slime" $entry.*.vtt; then
+        youtube-dl --id -f 18 $entry
+        grep "<c> slime" $entry.*.vtt | sed -r "s/.*(<[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9]><c> slime<\/c><[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]>).*/\1/g" | grep -v '[abdfghjknopqrtuvwxyz]' | sed -e "s/><c> slime<\/c></,/g" -e "s/[<>]//g" > $entry.times
+        cat $entry.times
+        local O=0
+        while read time; do 
+            (( O += 1 )) 
+            echo "CLIP!"
+            timestamp=$(echo $time | cut -d"," -f 2)  
+            end=$(echo $(echo "$timestamp" | cut -d: -f -2):$(echo "$timestamp-0.25" | cut -d: -f 3 | bc -l))
+            ffmpeg -ss $end -i $entry.mp4 -ss 00:00:00 -to 00:00:00.5 -async 1 ../cuts/$entry/$O.mp4
+        done < $entry.times
+    fi
     wait
 }
 sudo mount -t tmpfs -o size=4096m tmpfs workingspace/
@@ -48,9 +51,9 @@ while true; do
     done < ../.videos
     rm *
     cd -
-    #echo $newnext > .next
-    #next=$newnext
-    sleep 120s
+    echo $newnext > .next
+    next=$newnext
+    sleep 10s
     echo "Round $count done!"
     (( count += 1 ))
 done
